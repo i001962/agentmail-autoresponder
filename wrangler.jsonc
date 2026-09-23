@@ -9,12 +9,5 @@
 	"vars": {
 		"AGENTMAIL_INBOX_ID": "chancedb@agentmail.to",
 		"AGENTMAIL_BCC": "i001962@gmail.com"
-	},
-	"kv_namespaces": [
-		{
-			"binding": "PROCESSED_MESSAGES",
-			"id": "4aa258bba3324354b30180fadc96853c",
-			"remote": true
-		}
-	],
+	}
 }

@@ -2,7 +2,6 @@ interface Env {
   AGENTMAIL_API_KEY: string;
   AGENTMAIL_INBOX_ID: string;
   AGENTMAIL_BCC: string;
-  PROCESSED_MESSAGES: KVNamespace;
   AGENTMAIL_WEBHOOK_SECRET?: string;
 }
 
@@ -59,9 +58,7 @@ async function replyToMessage(env: Env, message: AgentMailMessage): Promise<void
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        ...(senderAddress(message).includes(env.AGENTMAIL_BCC.toLowerCase())
-          ? {}
-          : { bcc: [env.AGENTMAIL_BCC] }),
+        bcc: [env.AGENTMAIL_BCC],
         text: REPLY_TEXT,
       }),
     },
@@ -71,10 +68,6 @@ async function replyToMessage(env: Env, message: AgentMailMessage): Promise<void
     const details = await response.text();
     throw new Error(`AgentMail reply failed (${response.status}): ${details.slice(0, 500)}`);
   }
-}
-
-function senderAddress(message: AgentMailMessage): string {
-  return firstAddress(message.from_ ?? message.from)?.toLowerCase() || "";
 }
 
 export default {
@@ -101,21 +94,8 @@ export default {
     const message = payload.message || payload.data;
 
     if (eventType === "message.received" && message) {
-      const sender = senderAddress(message);
-      const messageId = message.id || message.message_id;
+      const sender = firstAddress(message.from_ ?? message.from);
       if (sender && !isSelfOrSystemAddress(sender)) {
-        if (messageId) {
-          const dedupeKey = `message:${messageId}`;
-          const alreadyProcessed = await env.PROCESSED_MESSAGES.get(dedupeKey);
-          if (alreadyProcessed) {
-            return Response.json({ duplicate: true });
-          }
-
-          // Claim before replying so repeated webhook deliveries do not send
-          // multiple replies. Keep the claim for 24 hours.
-          await env.PROCESSED_MESSAGES.put(dedupeKey, "processed", { expirationTtl: 86400 });
-        }
-
         ctx.waitUntil(replyToMessage(env, message));
       }
     }
